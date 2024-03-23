@@ -32,7 +32,11 @@ pause
 exit
 
 :listItems
-for %%f in (*.%fileExtension%) do echo "%%f"
+for %%f in (*.%fileExtension%) do (
+    (echo "%%f" | FIND /I "_compressed_" 1>NUL) || (
+        echo "%%f"
+    )
+)
 for /D %%d in (*) do (
     cd %%d
     call :listItems
@@ -41,7 +45,11 @@ for /D %%d in (*) do (
 exit /b
 
 :compressItems
-for %%f in (*.%fileExtension%) do ffmpeg -i "%%f" -vcodec libx264 -crf %userCRF% "_compressed_%%~nf.mp4"
+for %%f in (*.%fileExtension%) do (
+    (echo "%%f" | FIND /I "_compressed_" 1>NUL) || (
+        ffmpeg -n -i "%%f" -vcodec libx264 -crf %userCRF% "_compressed_%%~nf.mp4"
+    )
+)
 for /D %%d in (*) do (
     cd %%d
     call :compressItems
