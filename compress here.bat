@@ -2,6 +2,30 @@
 echo %cd%
 echo:
 
+echo Choose mode - regular(cpu)/experimental(gpu)
+set /p mode="Type 'r' / 'e' to choose: "
+echo:
+if "%mode%" == "r" goto :regular
+if "%mode%" == "R" goto :regular
+if "%mode%" == "e" goto :experimental
+if "%mode%" == "E" goto :experimental
+echo No mode selected.
+echo Aborting...
+pause
+exit
+
+:experimental
+echo Experimental (GPU) mode
+echo:
+echo This has a high chance of failing, test it on a copy first!
+
+call :experimentalUserInput
+call :experimentalCompressItems
+goto :end
+
+:regular
+echo Regular (CPU) mode
+echo:
 call :userInput
 call :compressItems
 goto :end
@@ -12,7 +36,16 @@ echo Higher values result in smaller files but worse quality.
 echo I found 24 to be the highest value with basically no impact on quality. 
 echo Reasonable values range from 18 to 28. I use 24 for my clips.
 set /p userCRF="I recommend staying within 22 to 26 (whole numbers only): "
-echo:
+
+call :fileExtensionPickAndConfirm
+exit /b
+
+:experimentalUserInput
+call :fileExtensionPickAndConfirm
+exit /b
+
+:fileExtensionPickAndConfirm
+echo: 
 set /p fileExtension="File type to search for (like mp4): "
 echo:
 call :listItems
@@ -53,6 +86,19 @@ for %%f in (*.%fileExtension%) do (
 for /D %%d in (*) do (
     cd %%d
     call :compressItems
+    cd ..
+)
+exit /b
+
+:experimentalCompressItems
+for %%f in (*.%fileExtension%) do (
+    (echo "%%f" | FIND /I "_compressed_" 1>NUL) || (
+        ffmpeg -n -vsync 0 -extra_hw_frames 8 -hwaccel cuda -hwaccel_output_format cuda -i "%%f" -c:v h264_nvenc -preset p7 -tune hq -b:v 6M -bufsize 6M -maxrate 10M -qmin 0 -g 250 -bf 3 -b_ref_mode middle -temporal-aq 1 -rc-lookahead 20 -i_qfactor 0.75 -b_qfactor 1.1 "_compressed_%%~nf.mp4"
+    )
+)
+for /D %%d in (*) do (
+    cd %%d
+    call :experimentalCompressItems
     cd ..
 )
 exit /b
